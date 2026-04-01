@@ -589,7 +589,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     recomputeDerivedState(dashboardData, resources);
-  }, [resources, dashboardData, recomputeDerivedState]);
+  }, [resources, recomputeDerivedState]);
 
   useEffect(() => {
     const channel = supabase
