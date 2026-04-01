@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Sidebar from "../components/ui_design/Sidebar";
 import NavBar from "../components/ui_design/NavBar";
 import RiskCard from "../components/ui_design/RiskCard";
@@ -48,10 +48,11 @@ function getReportImpact(reports) {
   let extraScore = 0;
 
   reports.forEach((report) => {
-    const severity = (report.severity || "").toLowerCase();
-    const type =
-      (report.disaster_type || report.report_type || report.type || "").toLowerCase();
-    const desc = (report.description || report.message || "").toLowerCase();
+    const severity = String(report.severity || "").toLowerCase();
+    const type = String(
+      report.disaster_type || report.report_type || report.type || ""
+    ).toLowerCase();
+    const desc = String(report.description || report.message || "").toLowerCase();
     const peopleAffected = Number(report.people_affected || report.peopleAffected || 0);
 
     if (severity === "high") extraScore += 12;
@@ -123,25 +124,11 @@ function getRecommendations(score, riverLevel, resources, reports = []) {
     `${r.disaster_type || r.report_type || r.type || ""}`.toLowerCase().includes("fire")
   );
 
-  if (hasMedical) {
-    actions.push("Dispatch medical response teams immediately");
-  }
-
-  if (hasFlood) {
-    actions.push("Place boats and flood rescue units on standby");
-  }
-
-  if (hasRoadBlock) {
-    actions.push("Send road clearance teams and publish alternate routes");
-  }
-
-  if (hasTrapped) {
-    actions.push("Prioritize rescue operations for trapped citizens");
-  }
-
-  if (hasFire) {
-    actions.push("Deploy fire and emergency control teams");
-  }
+  if (hasMedical) actions.push("Dispatch medical response teams immediately");
+  if (hasFlood) actions.push("Place boats and flood rescue units on standby");
+  if (hasRoadBlock) actions.push("Send road clearance teams and publish alternate routes");
+  if (hasTrapped) actions.push("Prioritize rescue operations for trapped citizens");
+  if (hasFire) actions.push("Deploy fire and emergency control teams");
 
   if (!resources.vehicle && score >= 60) {
     actions.push("Arrange external transport support");
@@ -158,14 +145,7 @@ function getRecommendations(score, riverLevel, resources, reports = []) {
   return [...new Set(actions)];
 }
 
-function getCitizenAdvice(
-  score,
-  riverLevel,
-  rainfall,
-  reportCount,
-  resources,
-  reports = []
-) {
+function getCitizenAdvice(score, riverLevel, rainfall, reportCount, resources, reports = []) {
   const advice = [];
 
   if (rainfall > 100) {
@@ -185,9 +165,7 @@ function getCitizenAdvice(
   );
 
   const hasWaterlogging = reports.some((r) =>
-    `${r.disaster_type || r.report_type || r.type || ""}`
-      .toLowerCase()
-      .includes("waterlogging")
+    `${r.disaster_type || r.report_type || r.type || ""}`.toLowerCase().includes("waterlogging")
   );
 
   const hasRoadBlock = reports.some((r) =>
@@ -202,25 +180,11 @@ function getCitizenAdvice(
     `${r.description || r.message || ""}`.toLowerCase().includes("trapped")
   );
 
-  if (hasFlood) {
-    advice.push("Avoid flood-prone roads and move valuables to higher places.");
-  }
-
-  if (hasWaterlogging) {
-    advice.push("Avoid waterlogged streets and use safer alternate routes.");
-  }
-
-  if (hasRoadBlock) {
-    advice.push("Road blockages reported. Check local route updates before travel.");
-  }
-
-  if (hasMedical) {
-    advice.push("Keep emergency medical contacts ready and assist vulnerable people nearby.");
-  }
-
-  if (hasTrapped) {
-    advice.push("Do not enter dangerous zones; contact rescue authorities immediately.");
-  }
+  if (hasFlood) advice.push("Avoid flood-prone roads and move valuables to higher places.");
+  if (hasWaterlogging) advice.push("Avoid waterlogged streets and use safer alternate routes.");
+  if (hasRoadBlock) advice.push("Road blockages reported. Check local route updates before travel.");
+  if (hasMedical) advice.push("Keep emergency medical contacts ready and assist vulnerable people nearby.");
+  if (hasTrapped) advice.push("Do not enter dangerous zones; contact rescue authorities immediately.");
 
   if (score >= 80) {
     advice.push("Evacuate immediately from high-risk zones.");
@@ -234,29 +198,12 @@ function getCitizenAdvice(
     advice.push("Conditions are currently stable. Continue monitoring.");
   }
 
-  if (!resources.drinkingWater) {
-    advice.push("Store clean drinking water immediately.");
-  }
-
-  if (!resources.foodStock) {
-    advice.push("Keep dry food stock for at least 24 hours.");
-  }
-
-  if (!resources.flashlight) {
-    advice.push("Arrange a torch or emergency light in case of power cuts.");
-  }
-
-  if (!resources.powerBank) {
-    advice.push("Charge all devices and arrange backup power.");
-  }
-
-  if (!resources.firstAid) {
-    advice.push("Keep a first aid kit ready as soon as possible.");
-  }
-
-  if (!resources.medicines) {
-    advice.push("Keep essential medicines ready before conditions worsen.");
-  }
+  if (!resources.drinkingWater) advice.push("Store clean drinking water immediately.");
+  if (!resources.foodStock) advice.push("Keep dry food stock for at least 24 hours.");
+  if (!resources.flashlight) advice.push("Arrange a torch or emergency light in case of power cuts.");
+  if (!resources.powerBank) advice.push("Charge all devices and arrange backup power.");
+  if (!resources.firstAid) advice.push("Keep a first aid kit ready as soon as possible.");
+  if (!resources.medicines) advice.push("Keep essential medicines ready before conditions worsen.");
 
   if (!resources.vehicle && score >= 60) {
     advice.push("Arrange transport early because evacuation may become difficult.");
@@ -272,55 +219,27 @@ function getCitizenAdvice(
 function getResourceGaps(score, resources) {
   const gaps = [];
 
-  if (score >= 60 && !resources.vehicle) {
-    gaps.push("Transport unavailable for fast evacuation");
-  }
-  if (!resources.firstAid) {
-    gaps.push("Medical readiness is low");
-  }
-  if (!resources.drinkingWater) {
-    gaps.push("Safe drinking water is insufficient");
-  }
-  if (!resources.foodStock) {
-    gaps.push("Emergency food stock is unavailable");
-  }
-  if (!resources.flashlight) {
-    gaps.push("Emergency lighting is unavailable");
-  }
-  if (!resources.powerBank) {
-    gaps.push("Backup power is missing");
-  }
-  if (!resources.shelterAccess && score >= 60) {
-    gaps.push("Nearest shelter access is not known");
-  }
-  if (!resources.mobileNetwork && score >= 60) {
-    gaps.push("Communication network is weak or unavailable");
-  }
+  if (score >= 60 && !resources.vehicle) gaps.push("Transport unavailable for fast evacuation");
+  if (!resources.firstAid) gaps.push("Medical readiness is low");
+  if (!resources.drinkingWater) gaps.push("Safe drinking water is insufficient");
+  if (!resources.foodStock) gaps.push("Emergency food stock is unavailable");
+  if (!resources.flashlight) gaps.push("Emergency lighting is unavailable");
+  if (!resources.powerBank) gaps.push("Backup power is missing");
+  if (!resources.shelterAccess && score >= 60) gaps.push("Nearest shelter access is not known");
+  if (!resources.mobileNetwork && score >= 60) gaps.push("Communication network is weak or unavailable");
 
-  if (gaps.length === 0) {
-    gaps.push("No major resource gaps detected");
-  }
+  if (gaps.length === 0) gaps.push("No major resource gaps detected");
 
   return gaps;
 }
 
-function getDecisionSummary(
-  score,
-  rainfall,
-  riverLevel,
-  reportCount,
-  region,
-  resources,
-  reports = []
-) {
+function getDecisionSummary(score, rainfall, riverLevel, reportCount, region, resources, reports = []) {
   const trappedCount = reports.filter((r) =>
     `${r.description || r.message || ""}`.toLowerCase().includes("trapped")
   ).length;
 
   const medicalCount = reports.filter((r) =>
-    `${r.disaster_type || r.report_type || r.type || ""}`
-      .toLowerCase()
-      .includes("medical")
+    `${r.disaster_type || r.report_type || r.type || ""}`.toLowerCase().includes("medical")
   ).length;
 
   if (score >= 80) {
@@ -373,9 +292,7 @@ const regionProfiles = {
 
 async function getCoordinates(region) {
   const res = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-      region
-    )}&count=1`
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(region)}&count=1`
   );
 
   if (!res.ok) throw new Error("Failed to fetch location data.");
@@ -402,10 +319,7 @@ async function getWeatherData(latitude, longitude) {
 
   const data = await res.json();
   const hourlyPrecipitation = data.hourly?.precipitation || [];
-  const totalRainfall = hourlyPrecipitation.reduce(
-    (sum, value) => sum + (value || 0),
-    0
-  );
+  const totalRainfall = hourlyPrecipitation.reduce((sum, value) => sum + (value || 0), 0);
 
   return {
     temperature: data.current?.temperature_2m ?? 0,
@@ -438,6 +352,7 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState("");
   const [loading, setLoading] = useState(false);
   const [showReports, setShowReports] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
 
   const [resources, setResources] = useState({
     vehicle: false,
@@ -452,15 +367,15 @@ export default function Dashboard() {
     elderlyAtHome: false,
   });
 
-  function handleResourceChange(e) {
+  const handleResourceChange = useCallback((e) => {
     const { name, checked } = e.target;
     setResources((prev) => ({
       ...prev,
       [name]: checked,
     }));
-  }
+  }, []);
 
-  function recomputeDerivedState(baseData, currentResources) {
+  const recomputeDerivedState = useCallback((baseData, currentResources) => {
     const actions = getRecommendations(
       baseData.riskScore,
       baseData.riverLevel,
@@ -496,85 +411,15 @@ export default function Dashboard() {
     setCitizenAdvice(advice);
     setResourceGaps(gaps);
     setDecisionText(summary);
-  }
-
-  useEffect(() => {
-    initializeDashboard();
   }, []);
 
-  useEffect(() => {
-    recomputeDerivedState(dashboardData, resources);
-  }, [resources]);
+  const fetchReports = useCallback(async (region) => {
+    const normalizedRegion = region.trim();
 
-  async function initializeDashboard() {
-    try {
-      setLoading(true);
-      setStatusMessage("Loading default region analysis...");
-
-      const reports = await fetchReports("Punjab");
-      const reportCount = reports.length;
-
-      const { latitude, longitude, resolvedName } = await getCoordinates("Punjab");
-      const weather = await getWeatherData(latitude, longitude);
-
-      const profile = regionProfiles[resolvedName] || {
-        baseRiverLevel: 4.5,
-        historicalFrequency: 2,
-        floodSensitivity: 1,
-      };
-
-      const historicalFrequency = profile.historicalFrequency;
-      const riverLevel = estimateRiverLevel(
-        profile.baseRiverLevel,
-        weather.rainfall,
-        profile.floodSensitivity
-      );
-
-      const reportImpact = getReportImpact(reports);
-
-      const score = calculateRiskScore({
-        rainfall: weather.rainfall,
-        riverLevel,
-        reportCount,
-        historicalFrequency,
-        reportImpact,
-      });
-
-      const level = getRiskLevel(score);
-      const confidence = getConfidence(reportCount, historicalFrequency, reports);
-
-      const baseData = {
-        region: resolvedName,
-        rainfall: weather.rainfall,
-        riverLevel,
-        reportCount,
-        reports,
-        historicalFrequency,
-        riskScore: score,
-        riskLevel: level,
-        recommendations: [],
-        temperature: weather.temperature,
-        humidity: weather.humidity,
-        confidence,
-      };
-
-      setDashboardData(baseData);
-      recomputeDerivedState(baseData, resources);
-      setLastUpdated(new Date().toLocaleString());
-      setStatusMessage(`Analysis loaded for ${resolvedName}.`);
-    } catch (error) {
-      console.log(error);
-      setStatusMessage("Could not load default analysis.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function fetchReports(region) {
     const { data, error } = await supabase
       .from("user_reports")
       .select("*")
-      .ilike("region", region.trim())
+      .ilike("region", `%${normalizedRegion}%`)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -583,9 +428,9 @@ export default function Dashboard() {
     }
 
     return data || [];
-  }
+  }, []);
 
-  async function saveFusedResult(dataToSave) {
+  const saveFusedResult = useCallback(async (dataToSave) => {
     const { error } = await supabase.from("fused_results").insert([
       {
         region: dataToSave.region,
@@ -599,121 +444,172 @@ export default function Dashboard() {
       },
     ]);
 
-    if (error) {
-      console.log(error.message);
-    }
-  }
+    if (error) console.log(error.message);
+  }, []);
 
-  async function handleRegionSearch() {
-    if (!regionInput.trim()) return;
+  const runAnalysisForRegion = useCallback(
+    async (regionName, customStatus = "") => {
+      try {
+        setLoading(true);
+        setStatusMessage(customStatus || `AI is analyzing ${regionName}...`);
 
-    try {
-      setLoading(true);
-      setStatusMessage(`AI is analyzing ${regionInput}...`);
+        const reports = await fetchReports(regionName);
+        const reportCount = reports.length;
 
-      const reports = await fetchReports(regionInput);
-      const reportCount = reports.length;
+        const { latitude, longitude, resolvedName } = await getCoordinates(regionName);
+        const weather = await getWeatherData(latitude, longitude);
 
-      const { latitude, longitude, resolvedName } = await getCoordinates(regionInput);
-      const weather = await getWeatherData(latitude, longitude);
+        const profile = regionProfiles[resolvedName] || {
+          baseRiverLevel: 4.5,
+          historicalFrequency: 2,
+          floodSensitivity: 1,
+        };
 
-      const profile = regionProfiles[resolvedName] || {
-        baseRiverLevel: 4.5,
-        historicalFrequency: 2,
-        floodSensitivity: 1,
-      };
-
-      const historicalFrequency = profile.historicalFrequency;
-      const riverLevel = estimateRiverLevel(
-        profile.baseRiverLevel,
-        weather.rainfall,
-        profile.floodSensitivity
-      );
-
-      const reportImpact = getReportImpact(reports);
-
-      const score = calculateRiskScore({
-        rainfall: weather.rainfall,
-        riverLevel,
-        reportCount,
-        historicalFrequency,
-        reportImpact,
-      });
-
-      const level = getRiskLevel(score);
-      const confidence = getConfidence(reportCount, historicalFrequency, reports);
-
-      const baseData = {
-        region: resolvedName,
-        rainfall: weather.rainfall,
-        riverLevel,
-        reportCount,
-        reports,
-        historicalFrequency,
-        riskScore: score,
-        riskLevel: level,
-        recommendations: [],
-        temperature: weather.temperature,
-        humidity: weather.humidity,
-        confidence,
-      };
-
-      const finalRecommendations = getRecommendations(
-        score,
-        riverLevel,
-        resources,
-        reports
-      );
-
-      setDashboardData({
-        ...baseData,
-        recommendations: finalRecommendations,
-      });
-
-      setCitizenAdvice(
-        getCitizenAdvice(
-          score,
-          riverLevel,
+        const historicalFrequency = profile.historicalFrequency;
+        const riverLevel = estimateRiverLevel(
+          profile.baseRiverLevel,
           weather.rainfall,
-          reportCount,
-          resources,
-          reports
-        )
-      );
+          profile.floodSensitivity
+        );
 
-      setResourceGaps(getResourceGaps(score, resources));
+        const reportImpact = getReportImpact(reports);
 
-      setDecisionText(
-        getDecisionSummary(
-          score,
-          weather.rainfall,
+        const score = calculateRiskScore({
+          rainfall: weather.rainfall,
           riverLevel,
           reportCount,
-          resolvedName,
-          resources,
-          reports
-        )
-      );
+          historicalFrequency,
+          reportImpact,
+        });
 
-      setLastUpdated(new Date().toLocaleString());
+        const level = getRiskLevel(score);
+        const confidence = getConfidence(reportCount, historicalFrequency, reports);
 
-      await saveFusedResult({
-        ...baseData,
-        recommendations: finalRecommendations,
-      });
+        const finalRecommendations = getRecommendations(score, riverLevel, resources, reports);
 
-      if (score >= 80) {
-        setStatusMessage(`🚨 Government alert triggered for ${resolvedName}.`);
-      } else {
-        setStatusMessage(`Analysis completed for ${resolvedName}.`);
+        const baseData = {
+          region: resolvedName,
+          rainfall: weather.rainfall,
+          riverLevel,
+          reportCount,
+          reports,
+          historicalFrequency,
+          riskScore: score,
+          riskLevel: level,
+          recommendations: finalRecommendations,
+          temperature: weather.temperature,
+          humidity: weather.humidity,
+          confidence,
+        };
+
+        setDashboardData(baseData);
+        setCitizenAdvice(
+          getCitizenAdvice(
+            score,
+            riverLevel,
+            weather.rainfall,
+            reportCount,
+            resources,
+            reports
+          )
+        );
+        setResourceGaps(getResourceGaps(score, resources));
+        setDecisionText(
+          getDecisionSummary(
+            score,
+            weather.rainfall,
+            riverLevel,
+            reportCount,
+            resolvedName,
+            resources,
+            reports
+          )
+        );
+        setLastUpdated(new Date().toLocaleString());
+
+        await saveFusedResult(baseData);
+
+        if (score >= 80) {
+          setStatusMessage(`🚨 Government alert triggered for ${resolvedName}.`);
+        } else {
+          setStatusMessage(`Analysis completed for ${resolvedName}.`);
+        }
+      } catch (error) {
+        console.log(error);
+        setStatusMessage(error.message || "Something went wrong during analysis.");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.log(error);
-      setStatusMessage(error.message || "Something went wrong during analysis.");
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [fetchReports, resources, saveFusedResult]
+  );
+
+  const initializeDashboard = useCallback(async () => {
+    await runAnalysisForRegion("Punjab", "Loading default region analysis...");
+  }, [runAnalysisForRegion]);
+
+  const handleRegionSearch = useCallback(async () => {
+    if (!regionInput.trim()) return;
+    await runAnalysisForRegion(regionInput);
+  }, [regionInput, runAnalysisForRegion]);
+
+  const handleDeleteReport = useCallback(
+    async (reportId) => {
+      const confirmDelete = window.confirm("Do you want to delete this report?");
+      if (!confirmDelete) return;
+
+      try {
+        setDeletingId(reportId);
+        const { error } = await supabase.from("user_reports").delete().eq("id", reportId);
+
+        if (error) {
+          console.log(error.message);
+          setStatusMessage("Could not delete report.");
+          return;
+        }
+
+        setStatusMessage("Report deleted successfully.");
+        await runAnalysisForRegion(
+          dashboardData.region,
+          "Updating prediction after report deletion..."
+        );
+      } catch (error) {
+        console.log(error);
+        setStatusMessage("Something went wrong while deleting the report.");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [dashboardData.region, runAnalysisForRegion]
+  );
+
+  useEffect(() => {
+    initializeDashboard();
+  }, [initializeDashboard]);
+
+  useEffect(() => {
+    recomputeDerivedState(dashboardData, resources);
+  }, [resources, dashboardData, recomputeDerivedState]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("user-reports-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_reports" },
+        async () => {
+          await runAnalysisForRegion(
+            dashboardData.region,
+            "New report detected. Updating prediction..."
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [dashboardData.region, runAnalysisForRegion]);
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-white">
@@ -740,6 +636,19 @@ export default function Dashboard() {
           </button>
 
           <button
+            onClick={() =>
+              runAnalysisForRegion(
+                dashboardData.region,
+                "Refreshing reports and prediction..."
+              )
+            }
+            disabled={loading}
+            className="px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl font-semibold disabled:opacity-60"
+          >
+            Refresh Reports
+          </button>
+
+          <button
             onClick={() => setShowReports((prev) => !prev)}
             className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-semibold border border-white/10"
           >
@@ -752,10 +661,7 @@ export default function Dashboard() {
           <p className="text-sm text-slate-400 mb-4">Last updated: {lastUpdated}</p>
         )}
 
-        <AlertBanner
-          riskLevel={dashboardData.riskLevel}
-          region={dashboardData.region}
-        />
+        <AlertBanner riskLevel={dashboardData.riskLevel} region={dashboardData.region} />
 
         <div className="grid md:grid-cols-4 gap-4 mb-6">
           <RiskCard
@@ -792,9 +698,7 @@ export default function Dashboard() {
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="bg-slate-900/70 rounded-2xl p-4 border border-white/5">
                   <p className="text-slate-400 text-sm">Region</p>
-                  <p className="text-xl font-semibold text-white mt-2">
-                    {dashboardData.region}
-                  </p>
+                  <p className="text-xl font-semibold text-white mt-2">{dashboardData.region}</p>
                 </div>
 
                 <div className="bg-slate-900/70 rounded-2xl p-4 border border-white/5">
@@ -873,10 +777,7 @@ export default function Dashboard() {
               riskLevel={dashboardData.riskLevel}
             />
 
-            <MapPanel
-              region={dashboardData.region}
-              riskLevel={dashboardData.riskLevel}
-            />
+            <MapPanel region={dashboardData.region} riskLevel={dashboardData.riskLevel} />
 
             {showReports && (
               <div className="p-6 bg-white/5 border border-white/10 rounded-3xl">
@@ -909,25 +810,32 @@ export default function Dashboard() {
                         >
                           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
                             <p className="text-white font-semibold text-lg">{title}</p>
-                            <span className="text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 w-fit">
-                              {severity}
-                            </span>
+
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 w-fit">
+                                {severity}
+                              </span>
+
+                              <button
+                                onClick={() => handleDeleteReport(report.id)}
+                                disabled={deletingId === report.id}
+                                className="text-xs px-3 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-400/20 hover:bg-red-500/30 disabled:opacity-50"
+                              >
+                                {deletingId === report.id ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
                           </div>
 
-                          <p className="text-slate-300 text-sm leading-6 mb-3">
-                            {description}
-                          </p>
+                          <p className="text-slate-300 text-sm leading-6 mb-3">{description}</p>
 
                           <div className="grid md:grid-cols-2 gap-2 text-xs text-slate-400">
                             <p>Region: {report.region || dashboardData.region}</p>
                             <p>
-                              People affected:{" "}
-                              {report.people_affected || report.peopleAffected || 0}
+                              People affected: {report.people_affected || report.peopleAffected || 0}
                             </p>
                             <p>Status: {report.status || "Pending"}</p>
                             <p>
-                              Submitted:{" "}
-                              {report.created_at
+                              Submitted: {report.created_at
                                 ? new Date(report.created_at).toLocaleString()
                                 : "N/A"}
                             </p>
@@ -941,9 +849,7 @@ export default function Dashboard() {
             )}
 
             <div className="p-6 bg-white/5 border border-white/10 rounded-3xl">
-              <h3 className="text-2xl font-semibold mb-5">
-                Personalized Precaution Suggestions
-              </h3>
+              <h3 className="text-2xl font-semibold mb-5">Personalized Precaution Suggestions</h3>
 
               <div className="grid gap-3">
                 {citizenAdvice.map((item, index) => (
@@ -995,8 +901,8 @@ export default function Dashboard() {
         </div>
 
         <p className="text-xs text-slate-500 mt-6">
-          Prototype note: weather and citizen reports are live inputs; river level is
-          modeled from rainfall, region profile, and reported ground conditions.
+          Prototype note: weather and citizen reports are live inputs; river level is modeled from rainfall,
+          region profile, and reported ground conditions.
         </p>
       </main>
     </div>
